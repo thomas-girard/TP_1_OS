@@ -822,5 +822,13 @@ void priodump(void){
 }
 
 int nice(int pid, int priority) {
-  return -1;
+  for (int i = 0; i<NPROC; i++) {
+    if (proc[i].pid == pid) {
+      remove_from_prio_queue(&proc[i]);
+      proc[i].priority = priority;
+      insert_into_prio_queue(&proc[i]);
+      return 1;
+    }
+  }
+  return 0;
 }
