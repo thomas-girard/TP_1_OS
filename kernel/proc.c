@@ -820,3 +820,7 @@ void priodump(void){
     printf("\n");
   }
 }
+
+int nice(int pid, int priority) {
+  return -1;
+}
