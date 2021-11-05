@@ -124,7 +124,7 @@ myproc(void) {
 int
 allocpid() {
   int pid;
-  
+
   acquire(&pid_lock);
   pid = nextpid;
   nextpid = nextpid + 1;
@@ -256,7 +256,7 @@ userinit(void)
 
   p = allocproc();
   initproc = p;
-  
+
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
@@ -271,7 +271,13 @@ userinit(void)
   p->cwd = namei("/");
   p->state = RUNNABLE;
 
+  // Activité 1.2
+  acquire(&prio_lock);
+  insert_into_prio_queue(p);
+
   release(&p->lock);
+  release(&prio_lock);
+  // fin activité 1.2
 }
 
 // Grow or shrink user memory by n bytes.
@@ -335,6 +341,11 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
+
+  // activité 1.2
+  acquire(&prio_lock);
+  insert_into_prio_queue(np);
+  release(&prio_lock);
 
   release(&np->lock);
 
@@ -401,6 +412,14 @@ exit(int status)
   wakeup1(initproc);
   release(&initproc->lock);
 
+  // activité 1.2
+  acquire(&prio_lock);
+  acquire(&p->lock);
+  remove_from_prio_queue(p);
+  release(&p->lock);
+  release(&prio_lock);
+  //fin activité 1.2
+
   // grab a copy of p->parent, to ensure that we unlock the same
   // parent we locked. in case our parent gives us away to init while
   // we're waiting for the parent lock. we may then race with an
@@ -410,7 +429,7 @@ exit(int status)
   acquire(&p->lock);
   struct proc *original_parent = p->parent;
   release(&p->lock);
-  
+
   // we need the parent's lock in order to wake it up from wait().
   // the parent-then-child rule says we have to lock it first.
   acquire(&original_parent->lock);
@@ -481,7 +500,7 @@ wait(uint64 addr)
       release(&p->lock);
       return -1;
     }
-    
+
     // Wait for a child to exit.
     sleep(p, &p->lock);  //DOC: wait-sleep
   }
@@ -499,7 +518,7 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+
   c->proc = 0;
   for(;;){
     // Avoid deadlock by giving devices a chance to interrupt.
@@ -605,7 +624,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   // Must acquire p->lock in order to
   // change p->state and then call sched.
   // Once we hold p->lock, we can be
