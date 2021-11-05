@@ -390,7 +390,7 @@ sys_chdir(void)
   char path[MAXPATH];
   struct inode *ip;
   struct proc *p = myproc();
-  
+
   begin_op(ROOTDEV);
   if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
     end_op(ROOTDEV);
@@ -483,10 +483,25 @@ sys_pipe(void)
   return 0;
 }
 
+// Question 4-4
 uint64
 sys_create_mutex(void)
 {
-  return -1;
+  int fd;
+  struct file *f;
+  struct sleeplock le_futex;
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+    if(f)
+      fileclose(f);
+    return -1;
+  }
+
+  f->type = FD_MUTEX;
+
+  le_futex.locked = 0;
+  f->mutex = le_futex;
+  return fd;
 }
 
 uint64
