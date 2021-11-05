@@ -534,7 +534,8 @@ proc* pick_highest_priority_runnable_proc() {
 void
 scheduler(void)
 {
-  struct proc *p;
+  //struct proc *p;
+
   struct cpu *c = mycpu();
 
   c->proc = 0;
@@ -547,33 +548,53 @@ scheduler(void)
     // cause a lost wakeup.
     intr_off();
 
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->scheduler, &p->context);
+    //int found = 0;
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+    // activité 2.2
+    struct proc* p = pick_highest_priority_runnable_proc();
+    if (p) {
+      p->state = RUNNING;
+      c->proc = p;
+      remove_from_prio_queue(p);
+      insert_into_prio_queue(p);
+      release(&prio_lock);
+      swtch(&c->scheduler, &p->context);
+       c->proc = 0;
 
-        found = 1;
-      }
-
-      // ensure that release() doesn't enable interrupts.
-      // again to avoid a race between interrupt and WFI.
+      //found = 1;
       c->intena = 0;
-
       release(&p->lock);
     }
-    if(found == 0){
+    else {
       asm volatile("wfi");
     }
+
+    // for(p = proc; p < &proc[NPROC]; p++) {
+    //   acquire(&p->lock);
+    //   if(p->state == RUNNABLE) {
+    //     // Switch to chosen process.  It is the process's job
+    //     // to release its lock and then reacquire it
+    //     // before jumping back to us.
+    //     p->state = RUNNING;
+    //     c->proc = p;
+    //     swtch(&c->scheduler, &p->context);
+
+    //     // Process is done running for now.
+    //     // It should have changed its p->state before coming back.
+    //     c->proc = 0;
+
+    //     found = 1;
+    //   }
+
+    //   // ensure that release() doesn't enable interrupts.
+    //   // again to avoid a race between interrupt and WFI.
+    //   c->intena = 0;
+
+    //   release(&p->lock);
+    // }
+    // if(found == 0){
+    //   asm volatile("wfi");
+    // }
   }
 }
 
